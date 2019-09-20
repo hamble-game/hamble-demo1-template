@@ -8,6 +8,134 @@ control.js：游戏主要逻辑控制
 
 function control() {
     this._init();
+    /*
+    观察者定义： 数据变化的反应器（观察者依赖于观察对象）
+
+    观察者行为定义：
+    block： 数据实体/观察对象/被观察者，通常为block、heroloc ! -> block的属性不可被观察者修改！
+    this：观察者，通常为sprite object
+    * */
+    this.observerAction = {
+        // 重绘自身
+        'draw': function(block, layer, arr){
+            this.setPositionWithBlock(block);
+            layer = layer || this.parent;
+            if(!layer){
+                layer = core.scenes.mapScene.getLayer(block.name || 'event')
+                    || core.scenes.mapScene.getLayer('event');
+            }
+            if(this.parent && this.parent != layer)
+                return;
+            if(block.event){
+                if(block.event.cls=='autotile'){ //todo: 如果是添加到当前的容器 是否会正常？
+                    core.maps._drawAutotile(layer, arr, block, core.__BLOCK_SIZE__, 0, 0);
+                    return;
+                }
+                else{
+                    if(block.event.animate && block.event.animate != 1){
+                        this.addAnimateInfo({'speed':30});
+                    }
+                    if(block.event.move){//todo:如果是具有移动信息的事件，如何保证录像？
+                    }
+                }
+            }
+            if(!layer.hasObj(this))
+                layer.addNewObj(this);
+
+        },
+        // 转向
+        'turn': function(block){
+            if(block.direction){
+                this.changePattern(null, core.utils.line[block.direction]);
+            }
+        },
+        // 移动 此处主要针对地图上的块 每次移动1格
+        'move': function(block, moveInfo){
+            this.setPositionWithBlock(block);
+            var speed = moveInfo.speed || 10; // TODO: 速度信息
+            var dir = moveInfo.direction;
+            var obj = this;
+            core.events._eventMoveSprite_moving(obj, dir, speed, moveInfo.callback, moveInfo.info)
+            return;
+
+            ////// xxxxxx 数据耦合 删除
+            var step = 0, moveSteps = (moveInfo.moveSteps||[]).filter(function (t) {
+                return ['up','down','left','right','forward','backward'].indexOf(t)>=0;
+            });
+            var nextStep = function(){
+                if(step<moveSteps.length){
+                    var dir = moveSteps[step++];
+                    block.x += core.utils.scan[dir].x;
+                    block.y += core.utils.scan[dir].y;
+                    core.events._eventMoveSprite_moving(obj, dir, speed, nextStep, moveInfo.info);
+                }else{
+                    obj.stopAnimate();
+                    obj.resetFrame();
+                    delete core.animateFrame.asyncId[obj];
+                    if(moveInfo.callback)moveInfo.callback();
+                }
+            }
+            core.animateFrame.asyncId[obj] = true;
+            nextStep();
+        },
+        // 跳跃 todo: 有细微的像素偏差 不知道问题在什么地方
+        'jump': function(block, jumpInfo){
+            var obj = this;
+            obj.parent.relocate(obj,1000001);
+            var px = jumpInfo.px,
+                py = jumpInfo.py;
+            var bias_x = px - this.x,
+                bias_y = py - this.y;
+            var next = function(){
+                obj.addMoveInfo(
+                    ~~(jumpInfo.px-px),
+                    ~~(jumpInfo.py-py),
+                    0.01,
+                    function(){
+                        if(jumpInfo.jump_count>0){
+                            core.maps.__updateJumpInfo(jumpInfo);
+                            setTimeout(next, jumpInfo.per_time);
+                        }
+                        else{
+                            obj.parent.relocate(obj);
+                            if(jumpInfo.callback){
+                                jumpInfo.callback();
+                            }
+                        }
+                    })
+                px = jumpInfo.px;
+                py = jumpInfo.py;
+            }
+            next();
+        },
+        // 淡出
+        'hide': function(block, params){
+            core.maps._showHideSpriteAnimate(this, params.time || 500, -0.1, params.callback);
+        },
+        // 淡入
+        'show': function(block, params){
+            core.maps._showHideSpriteAnimate(this, params.time, 0.1, params.callback);
+        },
+        // 模糊
+        'blur': function(block, param){
+            this.alpha = param;
+        },
+        // 动画
+        'play': function(block, info){
+            this.addAnimateInfo(info);
+        },
+        // 停止
+        'stop': function(block){
+            this.stopAnimate();
+        },
+        // 死亡的obj
+        'remove': function(block, layer, obj){
+            if(obj && this!==obj)return;
+            layer = layer || core.scenes.mapScene.getLayer('event');
+            layer.removeChild(this);//从场景中移除自身
+            block.remove(this);//观察者列表移除自身
+        }
+    }
 }
 
 control.prototype._init = function () {
@@ -132,7 +260,6 @@ control.prototype._animationFrame_autoSave = function (timestamp) {
 }
 
 control.prototype._animationFrame_sprite = function (timestamp) {
-    // core.updateRenderSprite();
     core.scenes.updateAllScenes();
 }
 
@@ -578,32 +705,13 @@ control.prototype.setCentralViewPoint = function(x, y){
     core.control.updateViewport();
 }
 
-////// 设置行走的效果动画 //////
-control.prototype.setHeroMoveInterval = function (callback) {
-    if (core.status.heroMoving > 0) return;
-    if (core.status.replay.speed == 24) {
-        core.moveOneStep(core.nextX(), core.nextY());
-        if (callback) callback();
-        return;
-    }
-
-    core.status.heroMoving=1;
-
-    var toAdd = 1;
-    if (core.status.replay.speed>3) toAdd = 2;
-    if (core.status.replay.speed>6) toAdd = 4;
-    if (core.status.replay.speed>12) toAdd = 8;
-
+////// 实际行走动画
+control.prototype._herosSpriteMove = function(callback){
     var direction = core.getHeroLoc('direction');
     var dx = core.utils.scan[direction].x * 32,
         dy = core.utils.scan[direction].y * 32;
     var line = core.utils.line[direction];
-    var render = core.scenes.mapScene.getRender('event');
-    render.blur();//core.sprite.render.blur();
-    //core.status.heroSprite.obj.addAnimateInfo({
-    //    'speed':30, 'line':line,
-    //});
-    core.status.heroSprite.obj.changePattern(null, line);
+    var render = core.scenes.mapScene.getLayer('event');
     var nx = core.nextX(), ny = core.nextY();
     var bigmap =
         dx > 0 && nx > core.__HALF_SIZE__ && nx + 1 <= core.bigmap.width - core.__HALF_SIZE__
@@ -613,18 +721,62 @@ control.prototype.setHeroMoveInterval = function (callback) {
         dy > 0 && ny > core.__HALF_SIZE__ && ny + 1 <= core.bigmap.height - core.__HALF_SIZE__
         ||
         dy < 0 && ny >= core.__HALF_SIZE__ && ny + 1 < core.bigmap.height - core.__HALF_SIZE__;
-    core.status.heroSprite.obj.addMoveInfo(
-        dx,dy,6,//~~(800 / core.values.moveSpeed),
+    var ct = 0;
+    var i = 0;
+    core.status.heroSprite.objs.forEach(
+        function(o){
+            i += 1;
+            if(core.isset(o.stop)){
+                if(o.stop){
+                    return;
+                }
+            }
+            ct += 1;
+            o.notify("move",{
+                'moveSteps':[o.direction],
+                'direction': o.direction,
+                'speed': 6,
+                'callback': function(){
+                    ct -= 1;
+                    if(ct==0 && i==core.status.heroSprite.objs.length){
+                        if(callback)callback();
+                    }
+                },
+                'info':{
+                    'freq':4,
+                    'bigmap': bigmap
+                }
+            })
+            bigmap = false; // bigmap只一次
+        }
+    )
+    return;
+}
+////// 设置行走的效果动画 //////
+control.prototype.setHeroMoveInterval = function (callback) {
+    if (core.status.heroMoving > 0) return;
+    if (core.status.replay.speed == 24) {
+        core.moveOneStep(core.nextX(), core.nextY());
+        if (callback) callback();
+        return;
+    }
+    core.status.heroMoving=1;
+    var toAdd = 1;
+    if (core.status.replay.speed>3) toAdd = 2;
+    if (core.status.replay.speed>6) toAdd = 4;
+    if (core.status.replay.speed>12) toAdd = 8;
+
+    this._herosSpriteMove(
         function(){
             core.status.heroMoving = 0;
-            core.moveOneStep(nx, ny);
-            core.status.heroSprite.obj.stopMoving();
-            core.status.heroSprite.obj.stopAnimate();
-            if (callback) callback();
-        }, {
-            'freq':4,
-            'bigmap': bigmap
-        });
+            core.moveOneStep(core.nextX(), core.nextY());
+            if(callback)callback();
+        }
+    )
+
+    return;
+
+
     return;
     //// XXXXXXXXXXXXXXXX ///////////
     core.interval.heroMoveInterval = window.setInterval(function () {
@@ -862,16 +1014,28 @@ control.prototype.heroSpritePositionTransForm = function(obj, x, y, direction, s
 }
 
 ////// 绘制勇士 //////
-// TODO: 勇士的观察者sprite
+// TODO: 勇士的观察者sprite 包括勇士本体 以及勇士的追踪者
+control.prototype._addHeroSprite = function(data){
+    core.becomeSubject(data);
+    data.addObserver(
+        core.sprite.getSpriteObj(data.name || 'hero'));
+    core.status.heroSprite.objs.push(data);
+}
+
 control.prototype.drawHero = function (status, offset) {
     if (!core.isPlaying() || !core.status.floorId || core.status.gameOver) return;
 
-    if(!core.status.heroSprite){
-        var tmp = {};
-        tmp.obj = core.sprite.getSpriteObj('hero');
-        tmp.observer = new transformOberver(tmp.obj);
-        // tmp.obj.bindPosition(tmp.observer.getPosition());
-        core.status.heroSprite = tmp;
+    if(core.status.heroSprite){
+        core.status.heroSprite.objs = core.status.heroSprite.objs.filter(function(o){
+            return !o.isEmpty();
+        })
+    }
+    if(!core.status.heroSprite || core.status.heroSprite.objs.length==0){
+        core.status.heroSprite = {
+            objs: [],
+        };
+        [core.status.hero.loc].concat(core.status.hero.followers || [])
+            .forEach(this._addHeroSprite);
     }
     var x = core.getHeroLoc('x'), y = core.getHeroLoc('y'), direction = core.getHeroLoc('direction');
     status = status || 'stop';
@@ -881,14 +1045,21 @@ control.prototype.drawHero = function (status, offset) {
     core.bigmap.offsetX = core.clamp((x - core.__HALF_SIZE__) * 32 + offsetX, 0, 32*core.bigmap.width-core.__PIXELS__);
     core.bigmap.offsetY = core.clamp((y - core.__HALF_SIZE__) * 32 + offsetY, 0, 32*core.bigmap.height-core.__PIXELS__);
     core.clearAutomaticRouteNode(x+dx, y+dy);
-    this.heroSpritePositionTransForm(core.status.heroSprite.obj, x, y, direction, status, offset);
+    //this.heroSpritePositionTransForm(core.status.heroSprite.obj, x, y, direction, status, offset);
 
 
     if(main.mode=='play'){
-        if(!core.scenes.mapScene.getRender('event').hasObj(core.status.heroSprite.obj)){ // TODO：简化-查看是否位于当前场景
-            core.scenes.mapScene.addSpriteToRender('event', core.status.heroSprite.obj);
+        // 勇士放在事件层
+        core.status.heroSprite.objs[0].notify('turn');
+        core.status.heroSprite.objs.forEach(function(o){
+            o.notify('draw');
+        })
+        /*
+        if(!core.scenes.mapScene.getLayer('event').hasObj(core.status.heroSprite.obj)){ // TODO：简化-查看是否位于当前场景
+            core.scenes.mapScene.addSpriteToLayer('event', core.status.heroSprite.obj);
         }
-        core.scenes.mapScene.getRender('event').relocate(core.status.heroSprite.obj);
+        core.scenes.mapScene.getLayer('event').relocate(core.status.heroSprite.obj);
+        */
     }
 
 
@@ -916,7 +1087,7 @@ control.prototype.drawHero = function (status, offset) {
         }
     )
    */
-    // core.scenes.mapScene.getRender('event').reloacate(core.status.heroSprite.obj);
+    // core.scenes.mapScene.getLayer('event').reloacate(core.status.heroSprite.obj);
 
     core.control.updateViewport();
     // core.setGameCanvasTranslate('hero', 0, 0);
@@ -1184,7 +1355,7 @@ control.prototype.updateDamage = function (floorId, ctx) {
     core.setFont(ctx, "bold 11px Arial");
     this._updateDamage_damage(floorId, ctx);
     this._updateDamage_extraDamage(floorId, ctx, refreshCheckBlock);
-    core.scenes.mapScene.getRender('damage').updateTexture();
+    core.scenes.mapScene.getLayer('damage').updateTexture();
 }
 
 control.prototype._updateDamage_damage = function (floorId, ctx) {

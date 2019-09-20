@@ -298,12 +298,14 @@ editor.prototype.updateMap = function () {
     core.status.thisMap.blocks = blocks;
 
     var updateMap = function () {
+        core.drawMap();
+        /*
         core.removeGlobalAnimate();
         core.clearMap('bg');
         core.clearMap('event');
         core.clearMap('event2');
         core.clearMap('fg');
-        core.maps._drawMap_drawAll();
+        core.maps._drawMap_drawAll();*/
     }
     updateMap();
 

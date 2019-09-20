@@ -114,7 +114,14 @@ main.floors.sample0=
             "noPass": null,
             "displayDamage": true,
             "data": []
-        }
+        },
+        "3,9": [
+            {
+                "type": "jump",
+                "time": 500,
+                "keep": true
+            }
+        ]
     },
     "changeFloor": {
         "6,0": {

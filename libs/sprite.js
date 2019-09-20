@@ -2,55 +2,63 @@
 
 var SSPrite = PIXI.Sprite;
 var PSprite = PIXI.AnimatedSprite;
+var SText = PIXI.Text;
 var Container = PIXI.Container;
 var Texture = PIXI.Texture;
 var Rectangle = PIXI.Rectangle;
 /*
     sprite.js 包含：
     1. sprite： 对资源的注册管理
-    2. spriteObj： 提供所有图块图标的渲染接口的对象，包括terr、items、enemys、icons、animates， 
+    2. spriteBase： 提供所有图块图标的渲染接口的基础对象，包括terr、items、enemys、icons、animates，
     autotile和大地图贴图暂时不做（特殊的处理？）
-    3. spriteRender： 提供对一组sprite的渲染处理方法，
-        从直觉上来说，处于同一个render的sprite，应该具有相同的活跃度，因此有不同的刷新率
-        因此可以认为应该有如下几个不同类型的render：
+    3. spriteLayer： 提供对一组sprite的渲染处理方法，
+        从直觉上来说，处于同一个layer的sprite，应该具有相同的活跃度，因此有不同的刷新率
+        因此可以认为应该有如下几个不同类型的layer：
         静态的： 背景、墙、animate为1的block
         动态的： 怪物、勇士
         全局持续动态的：天气、特殊动画
-        对这些render的管理，交由场景类进行
-    4. canvasRender: 对一个离屏canvas的渲染器，适用于慢更新图层
+        对这些layer的管理，交由场景类进行
+    4. canvasLayer: 对一个离屏canvas的渲染器，适用于慢更新图层
 
 
     可优化点：
     1. 部分清除/渲染（增加计算时间、减少渲染时间
     2. sprite图加载后就地切分，建立id-canvas的字典，避免反复对大图进行切分drawImage（减少渲染时间、增大运行时内存
-    3. 去掉spriteObj的info，改为从sprite查询（减少运行时内存
+    3. 去掉spriteBase的info，改为从sprite查询（减少运行时内存
 */
 function sprite() {
     this._init();
 }
-function spriteObj(texture, image){
+function spriteBase(texture, image){
     this._init(texture,image);
 }
-function spriteRender(ctx){
-    this._init(ctx);
+function spriteLayer(name){
+    this._init(name);
 }
-function canvasRender(ctx){
+function canvasLayer(ctx){
     this._init(ctx);
 }
 ///// 精灵的观察对象s
 function subject(){
-    this._init();
+}
+
+
+///// 文字精灵
+function textSprite(config){
+    this._init(config);
 }
 
 function spriteObserver(sobj){
-
 }
+
+
 ///// ----- 资源管理 -----
 sprite.prototype._init = function(){
     // example:
     this.sprite = sprite_90f36752_8815_4be8_b32b_d7fad1d0542e;
     
     // 兼容原来的部分图片并减少图片大小 如果是以下尺寸的精灵 将会附着到原有图片上 而非sprite上
+    // todo: 如果允许可以让作者自定义类型
     this.oldType = {
         '32,32,1':'terrains',
         '128,32,4':'animates',
@@ -64,7 +72,7 @@ sprite.prototype._init = function(){
     // this.xhBias = this.sprite['__xhBias__']; // 需要存
     //if(!core.material.images.sprite)core.material.images.sprite = new Image();
 
-    this.render = new spriteRender();
+    this.layer = new spriteLayer();
 //    this._load();
 }
 
@@ -72,7 +80,7 @@ sprite.prototype._load = function(){
     this.assets = core.material.images.sprite;
 
     this._generateTextures()
-    //this.render.destCtx = core.getContexByName('hero');
+    //this.layer.destCtx = core.getContexByName('hero');
 }
 
 
@@ -365,7 +373,7 @@ sprite.prototype.getSpriteFrame = function(name, frame, line){
 sprite.prototype.getSpriteObj = function(name){
     var texture = this.textures[name];//this.sprite[name];
     if(!texture) return this.getEmptySprite(name); //不存在的素材 返回空（作为容器存在）
-    return new spriteObj(texture,{name:name});
+    return new spriteBase(texture,{name:name});
 }
 
 sprite.prototype.getEmptySprite = function(name){
@@ -380,8 +388,8 @@ sprite.prototype.getSpriteFromFrameImage = function(image, frame, width){
     return SSPrite.from(image);
 }
 
-sprite.prototype.createCanvasRender = function(canvas){
-    return new canvasRender(canvas);
+sprite.prototype.createCanvasLayer = function(canvas){
+    return new canvasLayer(canvas);
 }
 
 ///// ------ sprite纯数据对象操作 -----
@@ -395,7 +403,7 @@ sprite.prototype.changeSpriteStatus = function(obj, nFrame, nLine){
 
 ///// 绘制spirte到指定位置
 // 此处的obj是数据对象 即不含方法的
-// 这是一个渲染方法 因此spriteObj不应该有此方法
+// 这是一个渲染方法 因此spriteBase不应该有此方法
 // obj : spirte data obj ctx : context bias : offset
 // 循环中抛弃此方法 这个仅用于通过名字绘图
 sprite.prototype.drawSpriteToCanvas = function(obj, ctx, bias){
@@ -446,94 +454,77 @@ sprite.prototype.drawSpriteToCanvas = function(obj, ctx, bias){
 
 ///// ------ 绘制 ------
 
-sprite.prototype.getNewRenderSprite = function(ctx){
-    return new spriteRender(ctx);
+sprite.prototype.getNewLayerSprite = function(name){
+    return new spriteLayer(name);
 }
 
 ///// 添加对象到当前的渲染队列
-sprite.prototype.addRenderSpriteObj = function(obj){
-    this.render.addNewObj(obj);
+sprite.prototype.addLayerSpriteObj = function(obj){
+    this.layer.addNewObj(obj);
 }
 /////
-sprite.prototype.deleteRenderSpriteObj = function(obj){
-    this.render.deleteObj(obj);
+sprite.prototype.deleteLayerSpriteObj = function(obj){
+    this.layer.deleteObj(obj);
 }
 /////
-sprite.prototype.hasRenderSpriteObj = function(obj){
-    return this.render.hasObj(obj);
+sprite.prototype.hasLayerSpriteObj = function(obj){
+    return this.layer.hasObj(obj);
 }
 /////
-sprite.prototype.relocateRenderSpriteObj = function(obj, prior){
-    this.render.relocate(obj, prior);
+sprite.prototype.relocateLayerSpriteObj = function(obj, prior){
+    this.layer.relocate(obj, prior);
 }
 /////
-sprite.prototype.blurRenderSprite = function(){
-    this.render.blur();
+sprite.prototype.blurLayerSprite = function(){
+    this.layer.blur();
 }
 
 /////
-sprite.prototype.updateRenderSprite = function(timeStamp){
-    this.render.update(timeStamp);
+sprite.prototype.updateLayerSprite = function(timeStamp){
+    this.layer.update(timeStamp);
 }
 
 /////
-sprite.prototype.drawRenderSprite = function(ctx){
-    this.render.drawTo(ctx);
+sprite.prototype.drawLayerSprite = function(ctx){
+    this.layer.drawTo(ctx);
 }
 
 /////
-sprite.prototype.clearRenderSprite = function(){
-    this.render.clear();
+sprite.prototype.clearLayerSprite = function(){
+    this.layer.clear();
 }
-
-///// !! 一个怪异点： block的存读导致其对象信息的丢失
-// 解决思路
-// 1. 初始化block时改变其原型——问题：clone会丢失
-// 2.  全部改成全局函数——问题：管理混乱
 
 ///// sobj成为一个被观察者
-
 ///// sobj成为一个被观察者 可以对dobj发出通知时进行行动 —— 注意： sobj必须是纯数据对象
+// 1. 被观察者不新增任何数据 只增加方法 —— 用闭包代替引用
+// 2. 对外表现仍然和subject对象无区别，只是无法直接访问其成员变量
 sprite.prototype.becomeSubject = function(sobj){
     Object.setPrototypeOf(sobj, subject.prototype);
-    sobj._init();
+    sobj._init(sobj);
 }
-
-
-
-///// 检查是否是subject不是就
-sprite.prototype.notifyObservers = function(sobj, type, params){
-    if(sobj.observe_actions[type]){
-        var t = type;
-        arguments[1] = sobj;
-        for (var i = 0;i < this.observers.length; i++) {
-            this.observe_actions[t].apply(this.observers[i], Array.prototype.slice.call(arguments, 1));
-        }
-    }
-}
-
 
 
 ///// ----- 渲染分组 -----
 
-///// 纯图片的渲染层 远景、前景图/伤害/
-canvasRender.prototype = Object.create(SSPrite.prototype);
-canvasRender.prototype.constructor = canvasRender;
-canvasRender.prototype._init = function(canvas){
+///// 纯canvas的渲染层 远景、前景图/伤害/
+// 适用于静态canvas UI、图片
+canvasLayer.prototype = Object.create(SSPrite.prototype);
+canvasLayer.prototype.constructor = canvasLayer;
+canvasLayer.prototype._init = function(canvas){
     SSPrite.call(this, Texture.from(canvas));
 }
-canvasRender.prototype.updateTexture = function(canvas){
+canvasLayer.prototype.updateTexture = function(canvas){
     if(canvas)this.textrure = Texture.from(canvas);
     else this.texture.update();
 }
-canvasRender.prototype.clear = function() {
+canvasLayer.prototype.clear = function() {
 }
 
 ///// 精灵渲染层
-spriteRender.prototype = Object.create(Container.prototype);
-spriteRender.prototype.constructor = spriteRender;
+spriteLayer.prototype = Object.create(Container.prototype);
+spriteLayer.prototype.constructor = spriteLayer;
 
-spriteRender.prototype._init = function(name){
+spriteLayer.prototype._init = function(name){
     Container.call(this)
     this.name = name
     this.dirty = false;
@@ -544,12 +535,12 @@ spriteRender.prototype._init = function(name){
 }
 
 /////
-spriteRender.prototype.requestUpdate = function(){
+spriteLayer.prototype.requestUpdate = function(){
     this.changed = true;
 }
 
 /////
-spriteRender.prototype.updateData = function(timeDelta) {
+spriteLayer.prototype.updateData = function(timeDelta) {
     var self = this;
     var callbackList = [];
     this.objs.forEach(function(obj){
@@ -560,7 +551,7 @@ spriteRender.prototype.updateData = function(timeDelta) {
             if(obj.move.callback)
                 callbackList.push(obj.move.callback);
         }
-        if(obj.isMoving()){
+        if(obj.isMoving() && !obj.isFlying()){
             self.relocate(obj);
         }
     })
@@ -571,7 +562,7 @@ spriteRender.prototype.updateData = function(timeDelta) {
     }
 }
 ///// dirty是由外部驱动的 表示需要它【保持】更新 needUpdate是内部判断的——当前内容是否值得更新
-spriteRender.prototype.update = function(time){
+spriteLayer.prototype.update = function(time){
     this.updateData(time);
     return;
 
@@ -604,14 +595,14 @@ spriteRender.prototype.update = function(time){
 }
 
 ///// refresh : 立即将缓存绘制到目标 注意，如果直接调用此函数 那么可能会是旧数据 可用于无需更新的静态场景
-spriteRender.prototype.refresh = function(){
+spriteLayer.prototype.refresh = function(){
     if(this.destCtx){ // TODO: 也许不应该在此clearRect?
         this.destCtx.clearRect(0,0,this.destCtx.canvas.width, this.destCtx.canvas.height);
         this.drawTo(this.destCtx);
     }
 }
 
-spriteRender.prototype.clear = function(){
+spriteLayer.prototype.clear = function(){
     this.objs.forEach(function(c){
         if(c.subject)
             c.subject.remove(c); // 从观察者列表中移除自身
@@ -620,23 +611,23 @@ spriteRender.prototype.clear = function(){
 }
 
 ///// 重定向一个ctx作为绘制目标
-spriteRender.prototype.redirectCtx = function(ctx){
+spriteLayer.prototype.redirectCtx = function(ctx){
     this.destCtx = ctx;
 }
 
 ///// 添加一个静态背景 每次重绘的时候先画一次背景
-spriteRender.prototype.addBackImage = function(bg){
+spriteLayer.prototype.addBackImage = function(bg){
     this.backImage = bg;
 }
 
 ///// 添加一个静态背景 每次重绘的时候先画一次背景
-spriteRender.prototype.getBackCanvas = function(){
+spriteLayer.prototype.getBackCanvas = function(){
     if(this.backImage)return this.backImage.getContext('2d');
     else return this.createBackCanvas();
 }
 
 ///// 添加一个静态背景 每次重绘的时候先画一次背景
-spriteRender.prototype.createBackCanvas = function(){
+spriteLayer.prototype.createBackCanvas = function(){
     var canvas = document.createElement("canvas");
     canvas.width = this.canvas.width;
     canvas.height = this.canvas.height;
@@ -646,7 +637,7 @@ spriteRender.prototype.createBackCanvas = function(){
 
 
 ///// 对obj重定位
-spriteRender.prototype.relocate = function(obj, prior){
+spriteLayer.prototype.relocate = function(obj, prior){
     obj.zIndex = prior || this.calcuPrior(obj);
     obj.sortDirty = true;
     // var idx = this.objs.indexOf(obj);
@@ -658,21 +649,21 @@ spriteRender.prototype.relocate = function(obj, prior){
 
 ///// TODO: 定位脏区 减少重绘次数
 // 改名：启动
-spriteRender.prototype.blur = function(){
+spriteLayer.prototype.blur = function(){
     this.dirty = true;
 }
 
 ///// 图块优先级: bottom * 1000 + width  越小越优先画
-spriteRender.prototype.calcuPrior = function(obj){
+spriteLayer.prototype.calcuPrior = function(obj){
     return (obj.priority || (obj.texture.width||32) + 1000*(obj.y+obj.texture.height));
 }
 
-// 只有添加到render中，sprite才是一个对象，否则只是一个数据
-spriteRender.prototype.addNewObj = function(obj, prior){
+// 只有添加到layer中，sprite才是一个对象，否则只是一个数据
+spriteLayer.prototype.addNewObj = function(obj, prior){
     if(typeof obj === 'string'){
         obj = core.sprite.getSpriteObj(obj);
-    }else if(!obj.prototype){ // 纯数据转换成对象
-        Object.setPrototypeOf(obj, spriteObj.prototype);
+    }else if(!obj.__proto__){ // 纯数据转换成对象
+        Object.setPrototypeOf(obj, spriteBase.prototype);
     }
     if(typeof prior != 'number'){
         obj.zIndex = this.calcuPrior(obj);
@@ -690,25 +681,24 @@ spriteRender.prototype.addNewObj = function(obj, prior){
         }
     }*/
     // this.objs.splice(index, 0, obj);
-    obj.changed = true;
 }
-spriteRender.prototype.deleteObj = function(obj){
+spriteLayer.prototype.deleteObj = function(obj){
     this.removeChild(obj);
     // var idx = this.objs.indexOf(obj);
     // if(idx>=0)this.objs.splice(idx, 1);
     // this.blur();
 }
-spriteRender.prototype.hasObj = function(obj){
+spriteLayer.prototype.hasObj = function(obj){
     return this.objs.indexOf(obj)>=0;
 }
 
 // CTX是场景
-spriteRender.prototype.drawTo = function(stage){
+spriteLayer.prototype.drawTo = function(stage){
     stage.addChild(this);
     //ctx.drawImage(this.canvas, 0, 0, this.canvas.width, this.canvas.height, 0, 0, ctx.canvas.width, ctx.canvas.height);
 }
 
-spriteRender.prototype.reloadCanvas = function(){
+spriteLayer.prototype.reloadCanvas = function(){
     this.objs.forEach(function(obj) {
         obj.updateTexture();
     })
@@ -716,10 +706,10 @@ spriteRender.prototype.reloadCanvas = function(){
 
 ///// ----- 对象 ------ 从数据初始化，数据为位置信息和原始信息
 
-spriteObj.prototype = Object.create(PSprite.prototype);
-spriteObj.prototype.constructor = spriteObj;
+spriteBase.prototype = Object.create(PSprite.prototype);
+spriteBase.prototype.constructor = spriteBase;
 
-spriteObj.prototype._init = function(texture, extra){
+spriteBase.prototype._init = function(texture, extra){
     PSprite.call(this, texture[0], false);
     this.name = extra.name;
     this.image = texture;
@@ -727,7 +717,7 @@ spriteObj.prototype._init = function(texture, extra){
         'line': texture.length,
         'frame': texture[0].length,
     }
-    this.x = -100; this.y = -100;
+    this.x = -100; this.y = -100; // 不立即显示
     this.anchor.set(0.5, 1);
     // this.info = info;
     this.nFrame = 0;
@@ -739,12 +729,12 @@ spriteObj.prototype._init = function(texture, extra){
 
 
 ///// 手动操作的帧播放
-spriteObj.prototype.playFrame = function(){
+spriteBase.prototype.playFrame = function(){
     var d = (this.animate||{}).inverse ? -1 : 1;
     this.nFrame = (this.nFrame+d+this.totalFrames)%(this.totalFrames);
     this.changePattern(this.nFrame);
 }
-spriteObj.prototype.playFrameOneTime = function(){
+spriteBase.prototype.playFrameOneTime = function(){
     this.playFrame();
     if(this.animate.inverse && this.nFrame==this.totalFrames-1){
         this.nFrame = 0;
@@ -759,7 +749,7 @@ spriteObj.prototype.playFrameOneTime = function(){
     return false;
 }
 
-spriteObj.prototype.playFading = function() {
+spriteBase.prototype.playFading = function() {
     if (this.animate.fade) { ///// 渐变 需要指定每次渐变的量
         this.alpha = core.clamp(this.alpha + this.animate.fade, 0, 1);
         //this.sortDirty = true;
@@ -770,7 +760,7 @@ spriteObj.prototype.playFading = function() {
 }
 
 ///// 添加移动信息 速度的单位是像素/帧 —— 帧率由画布决定
-spriteObj.prototype.addMoveInfo = function(dx, dy, speed, callback, info){
+spriteBase.prototype.addMoveInfo = function(dx, dy, speed, callback, info){
     info = info || {};
     var dist = Math.abs(dx+dy);
     this.move = {
@@ -796,13 +786,13 @@ spriteObj.prototype.addMoveInfo = function(dx, dy, speed, callback, info){
 }
 
 ///// 添加特效信息
-spriteObj.prototype.setAlpha = function(alpha){
+spriteBase.prototype.setAlpha = function(alpha){
     this.alpha = alpha;
     // this.special = this.special || {};
     // this.special['globalAlpha'] = alpha;
 }
 ///// 添加
-spriteObj.prototype.setBlendMode = function(mode){
+spriteBase.prototype.setBlendMode = function(mode){
     this.blendMode = mode;
     //    this.special = this.special || {};
 //    this.special['globalCompositeOperation'] = mode;
@@ -812,7 +802,7 @@ spriteObj.prototype.setBlendMode = function(mode){
 
 
 ///// 添加帧动画自动播放信息 speed是帧率
-spriteObj.prototype.addAnimateInfo = function(info){
+spriteBase.prototype.addAnimateInfo = function(info){
     info = info || {};
     if(this.animate && !this.animate.stop){ // 如果已有动画且在播放 将添加到其尾部(所以添加一次性动画一定要先stop
         var lastCall = this.animate.callback;
@@ -845,25 +835,25 @@ spriteObj.prototype.addAnimateInfo = function(info){
 }
 
 ///// 停止动画
-spriteObj.prototype.stopAnimate = function(){
+spriteBase.prototype.stopAnimate = function(){
     if(this.animate)
         this.animate.stop = true;
     this.gotoAndStop(this.nFrame);
 }
 
 ///// 停止移动
-spriteObj.prototype.stopMoving = function(){
+spriteBase.prototype.stopMoving = function(){
     if(this.move)this.move.stop = true;
 }
 
 /////
-spriteObj.prototype.resetFrame = function(){
+spriteBase.prototype.resetFrame = function(){
     this.nFrame = 0;
     this.gotoAndStop(this.nFrame);
 }
 
 ///// 复位： changePattern(0)
-spriteObj.prototype.changePattern = function(nFrame, nLine){
+spriteBase.prototype.changePattern = function(nFrame, nLine){
     if(core.isset(nFrame))this.nFrame = nFrame % this.totalFrames;
     if(core.isset(nLine))this.nLine = nLine % this.image.length;
     this.textures = this.image[this.nLine]
@@ -871,47 +861,45 @@ spriteObj.prototype.changePattern = function(nFrame, nLine){
 }
 
 
-spriteObj.prototype.hasStepAnimate = function(){
+spriteBase.prototype.hasStepAnimate = function(){
     return this.move.animate;
 }
 
-spriteObj.prototype.isMoving = function(){
+///// 是否处于移动中
+spriteBase.prototype.isMoving = function(){
     return this.move && !this.move.stop && !this.move.done;
 }
 
-spriteObj.prototype.isStoping = function(){
+///// 是否处于高空状态
+
+spriteBase.prototype.isFlying = function(){
+    return this.zIndex >= 1000000;
+}
+
+spriteBase.prototype.isStoping = function(){
     return !this.isMoving();
 }
 
 ///// 刚刚结束一步的移动
-spriteObj.prototype.endOneStep = function(){
+spriteBase.prototype.endOneStep = function(){
     return this.move && !this.move.stop && this.move.done;
 }
 
 
-spriteObj.prototype.getSpeed = function(){
+spriteBase.prototype.getSpeed = function(){
     return this.move.speed;
 }
 
 
-spriteObj.prototype.setPositionWithBlock = function(block){
+spriteBase.prototype.setPositionWithBlock = function(block){
     this.x = block.x * core.__BLOCK_SIZE__ + core.__HALFBLOCK_SIZE__ ;
     this.y = (block.y+1) * core.__BLOCK_SIZE__;
 }
 
 //////
-var fcount = 0;
-var timeCount = 0;
-spriteObj.prototype.moveAction = function(timeDelta){
+spriteBase.prototype.moveAction = function(timeDelta){
     if(this.isMoving()){
-        fcount ++;
-        timeCount += timeDelta;
-        if(timeCount>=1000){
-            console.log(fcount);
-            fcount = 0;
-            timeCount = 0;
-        }
-        var step = this.move.speed*timeDelta;
+        var step = Math.max(this.move.speed*timeDelta,1); // 至少移动1像素
         if(this.move.dx < 0){
             this.move.realX = Math.max(this.move.realX - step, this.move.destX);
         }
@@ -938,12 +926,12 @@ spriteObj.prototype.moveAction = function(timeDelta){
 }
 
 ///// 是否需要更新？ —— 有动作信息的才更新
-spriteObj.prototype.needUpdate = function(){
+spriteBase.prototype.needUpdate = function(){
     return this.animate || this.move;
 }
 
 ///// 更新sprite动作
-spriteObj.prototype.updateAction = function(timeDelta){
+spriteBase.prototype.updateAction = function(timeDelta){
     if(!this.needUpdate())return;
     this.updatePattern();
     this.moveAction(timeDelta);
@@ -951,7 +939,7 @@ spriteObj.prototype.updateAction = function(timeDelta){
 }
 
 ///// 更新模式，在走路过程中 只要等待到一定帧数就会加一步 如果停下来了就会复位
-spriteObj.prototype.updatePattern = function() {
+spriteBase.prototype.updatePattern = function() {
     if(this.isStoping())
         this._stopCount++;
     if(!this.isAnimating() && this._maxWaitCount > 0){
@@ -970,12 +958,12 @@ spriteObj.prototype.updatePattern = function() {
 }
 
 
-spriteObj.prototype.isAnimating = function(){
+spriteBase.prototype.isAnimating = function(){
     return this.animate && !this.animate.stop && !this.animate.auto;
 }
 
 ////// timeDelta —— 其实就是帧差 如果无误应该是1 但是如果卡了或者机器比较垃圾就会大于1
-spriteObj.prototype.animateAction = function(timeDelta){
+spriteBase.prototype.animateAction = function(timeDelta){
     if(this.isAnimating()){
         timeDelta = timeDelta || 1;
         //// todo 单sprite的动画行为分开注册
@@ -1017,70 +1005,93 @@ spriteObj.prototype.animateAction = function(timeDelta){
 }
 
 ///// 绘制到指定位置 (x
-spriteObj.prototype.drawToCanvas = function(ctx,bias){
+spriteBase.prototype.drawToCanvas = function(ctx,bias){
     core.drawSpriteToCanvas(this,ctx,bias);
 }
 ///// 绘制到地图 以对称轴为中心线 (x
-spriteObj.prototype.drawToMap = function(ctx,x,y,w,h){
+spriteBase.prototype.drawToMap = function(ctx,x,y,w,h){
     w = w || this.info.width;
     h = h || this.info.height;
     var destX = x*32+16 - ~~(w/2+0.5);
     var destY = (y+1)*32 - h;
     ctx.drawImage(this.image, this.info.x+this.nFrame*this.info.width, this.info.y+this.nLine*this.info.height, this.info.width, this.info.height, destX,destY,w||this.info.width,h || this.info.height);
 }
-///// 绑定一个对象 具有x、y、offsetX、offsetY
-//spriteObj.prototype.bindPosition = function(pos){
-//    this.position = pos;
-//}
 
 //////  ----- 观察者：sprite  被观察者： block（以及所有可能会用到sprite的游戏数据对象）
-// subject对象应该位于block内部，当block发生变化时，通过notify通知sprite
+// 使用方法，将block变成一个subject，当block发生变化时，通过notify通知sprite
 // 应用目的：
 // 1. 当地图被删除时，对应的观察者应该也移除，否则会有sprite驻留内存，导致内存额外开销
 // 2. 由被观察者决定如何进行sprite的行动
 
-subject.prototype._init = function(){ // sobj: 被观察者
-    this.observers = this.observers || []; // 观察者
-    this.observe_actions = this.observe_actions || {}; // 提醒信息
+subject.prototype._init = function(sobj){ // sobj: 被观察者
+// private:
+    var observers = []; // 观察者
+    var observe_actions = core.control.observerAction; // 提醒信息
+// interface:
+    this.observers = function(){return observers}
+    this.observe_actions = function(){return observe_actions}
+    this.subject = function(){return sobj;}
 }
 
-// 使用headless的前提： 动画操作不改变任何实际数据
-subject.prototype.headLessNotify = function(type, param){
-    if(this.observe_actions[type] && param.callback){
-        param.callback();
-    }
-}
 // 使用notify的规范：
 // 1. 所有参数要保持和注册的函数参数一致
-// 2. 如果有回调函数，需要将其写在第一个参数的字典中（最好全部参数放到params里）
+// 2. 如果有回调函数callback，需要将其写在第一个参数的字典中
+// 3. observe_actions 不引起数据变化，数据变化均在callback中
 subject.prototype.notify = function(type, params){
-    if(this.observe_actions[type]){
+    var observe_actions = this.observe_actions();
+    var observers = this.observers();
+    if(observe_actions[type]){
+        if(this.headless){
+            if(params.callback){
+                callback();
+            }
+            return;
+        }
         var t = type;
         arguments[0] = this;
-        for (var i in this.observers) {
-            this.observe_actions[t].apply(this.observers[i], arguments);
+        for (var i in observers) {
+            observe_actions[t].apply(observers[i], arguments);
         }
     }
 }
 
 subject.prototype.hasObserver = function(name){
-    return this.observers.indexOf(name)>=0;
+    return this.observers().indexOf(name)>=0;
 }
 
-subject.prototype.addObserver = function(name, obj, info) {
-    this.observers.push(obj);
+subject.prototype.addObserver = function(obj, info) {
+    var observe_actions = this.observe_actions();
+    var observers = this.observers();
+    observers.push(obj);
     obj.subject = this;
     info = info || {};
     for(var i in info){
-        this.observe_actions[i] = info[i];
+        observe_actions[i] = info[i];
     }
 }
-subject.prototype.remove = function(name){
-    if(!name){
-        this.observers = [];
-    }else {
-        var idx = this.observers.indexOf(name);
-        if(idx>=0)
-            this.observers.splice(idx, 1);
+
+///// 清空已经没有观察者的
+subject.prototype.isEmpty = function(){
+    if(this.observers().length==0){
+        return true;
     }
+    return false;
+}
+
+subject.prototype.remove = function(name){
+    var observers = this.observers();
+    if(!name){
+        observers.splice(0);
+    }else {
+        var idx = observers.indexOf(name);
+        if(idx>=0)
+            observers.splice(idx, 1);
+    }
+}
+
+textSprite.prototype = Object.create(SText.prototype);
+textSprite.prototype.constructor = textSprite;
+textSprite.prototype._init = function (config) {
+    SText.call('',config||{});
+    this.fText = config.text || null;
 }
