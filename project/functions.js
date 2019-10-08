@@ -49,11 +49,6 @@ var functions_d6ad677b_427a_4623_b50f_a445a3b0ef8a =
 		core.showStatusBar();
 	// 隐藏右下角的音乐按钮
 	core.dom.musicBtn.style.display = 'none';
-	//core.sprite.render.destCtx = core.getContextByName('hero');
-
-	//core.scenes.mapScene.getRender('event').redirectCtx(core.getContextByName('event'));
-	//core.scenes.mapScene.getRender('bg').redirectCtx(core.getContextByName('bg'));
-	//core.scenes.mapScene.getRender('fg').redirectCtx(core.getContextByName('fg'));
 },
         "setInitData": function () {
 	// 不同难度分别设置初始属性
@@ -126,6 +121,12 @@ var functions_d6ad677b_427a_4623_b50f_a445a3b0ef8a =
 	//     core.deleteAllCanvas();
 	// }
 
+	// AI信息块
+	if(currentId && !fromLoad){
+		core.saveAIData(currentId);
+	}
+	core.loadAIData(floorId);
+
 	// 重置画布尺寸
 	core.maps.resizeMap(floorId);
 	// 检查重生怪并重置
@@ -193,7 +194,7 @@ var functions_d6ad677b_427a_4623_b50f_a445a3b0ef8a =
 	var fromId = core.status.floorId;
 
 	// 检查能否飞行
-	if (!core.status.maps[fromId].canFlyTo || !core.status.maps[toId].canFlyTo || !core.hasVisitedFloor(toId)) {
+	if (!core.status.maps[fromId].canFlyTo || !core.status.maps[toId].canFlyTo) {
 		core.drawTip("无法飞往" + core.status.maps[toId].title + "！");
 		return false;
 	}
@@ -368,7 +369,7 @@ var functions_d6ad677b_427a_4623_b50f_a445a3b0ef8a =
 
 	// 如果该点存在事件 -- V2.5.4 以后阻击怪也可以有战后事件了
 	core.push(todo, core.floors[core.status.floorId].afterBattle[x + "," + y]);
-
+	core.checkAfterBattle();
 	// 在这里增加其他的自定义事件需求
 	/*
 	if (enemyId=='xxx') {
@@ -604,7 +605,10 @@ var functions_d6ad677b_427a_4623_b50f_a445a3b0ef8a =
 	//     mon_atk = hero_atk;
 	// }
 	// 也可以按需增加各种自定义内容（比如幻塔的魔杖效果等）
-
+	var blk = core.getBlock(x,y);
+	if(blk && blk.block.damage){
+		mon_hp = Math.max(0, mon_hp - blk.block.damage);
+	}
 	return {
 		"hp": Math.floor(mon_hp),
 		"atk": Math.floor(mon_atk),
@@ -648,7 +652,19 @@ var functions_d6ad677b_427a_4623_b50f_a445a3b0ef8a =
 		mon_atk = enemyInfo.atk,
 		mon_def = enemyInfo.def,
 		mon_special = enemyInfo.special;
+	var damage = Math.max(0, mon_hp +  Math.max(0,mon_atk - hero_def));
+	// if(!core.getBlock(x,y))damage = 0;
 
+	return {
+		"mon_hp": Math.floor(mon_hp),
+		"mon_atk": Math.floor(mon_atk),
+		"mon_def": Math.floor(mon_def),
+		"init_damage": 0,
+		"per_damage": 0,
+		"hero_per_damage": 0,
+		"turn": 1,
+		"damage": damage
+	};
 	// 技能的处理
 	if (core.getFlag('skill', 0) == 1) { // 开启了技能1：二倍斩
 		hero_atk *= 2; // 计算时攻击力翻倍	
@@ -938,7 +954,7 @@ var functions_d6ad677b_427a_4623_b50f_a445a3b0ef8a =
     "control": {
         "saveData": function () {
 	// 存档操作，此函数应该返回“具体要存档的内容”
-
+	core.saveAIData();
 	// 差异化存储values
 	var values = {};
 	for (var key in core.values) {
@@ -1005,9 +1021,31 @@ var functions_d6ad677b_427a_4623_b50f_a445a3b0ef8a =
 	core.updateEnemys();
 
 	// TODO：增加自己的一些读档处理
+	if(flags.tmp_bar){
+		flags.tmp_bar = false;
+		core.insertAction('技能盘');
+	}
+	var thisMap = core.status.maps[core.status.floorId];
+	// flags.aiBlks = thisMap.blocks.filter(function(blk){return blk.active});
+	/*
+	if(flags.aiBlks){
+		var ids = [];
+		var thisMap = core.status.maps[core.status.floorId];
+		thisMap.blocks.forEach(function(blk){
+			ids.push(blk.x+','+blk.y);
+		});
+		var delIdx = [];
+		flags.aiBlks.forEach(function(blk){
+			delIdx.push(ids.indexOf(blk.x+','+blk.y));
+		})
+		core.removeBlockByIds(core.status.floorId, delIdx);
+		thisMap.blocks = thisMap.blocks.concat(flags.aiBlks);
+	}*/
+
 	// 切换到对应的楼层
 	core.changeFloor(data.floorId, null, data.hero.loc, 0, function () {
 		// TODO：可以在这里设置读档后播放BGM
+		core.updateDamage();
 		if (core.hasFlag("__bgm__")) { // 持续播放
 			core.playBgm(core.getFlag("__bgm__"));
 		}
@@ -1095,7 +1133,7 @@ var functions_d6ad677b_427a_4623_b50f_a445a3b0ef8a =
 	}
 
 	// 难度
-	core.statusBar.hard.innerHTML = core.status.hard;
+	core.statusBar.hard.innerHTML = (core.hasItem('arrow1')||core.hasEquip('arrow1'))?'射击':'';
 	// 自定义状态栏绘制
 	core.drawStatusBar();
 
@@ -1266,6 +1304,17 @@ var functions_d6ad677b_427a_4623_b50f_a445a3b0ef8a =
 		cache: {} // clear cache
 	};
 },
+
+
+"beforeMoveStep": function(canMove){
+	// 勇士即将走出一步前的操作 
+	if(canMove){
+		var tmp = core.status.heroMoving;
+		core.status.heroMoving = 1;
+		core.mainArcherLoop(); // 即时制： 怪物勇士同时动
+		core.status.heroMoving = tmp;
+	}
+},
         "moveOneStep": function (x, y) {
 	// 勇士每走一步后执行的操作，x,y为要移动到的坐标。
 	// 这个函数执行在“刚走完”的时候，即还没有检查该点的事件和领域伤害等。
@@ -1292,10 +1341,12 @@ var functions_d6ad677b_427a_4623_b50f_a445a3b0ef8a =
 			return;
 		}
 	}
+	core.aiCheckHero();
+	// core.mainArcherLoop(); /// : 回合制 ： 一步一动
 	// 如需强行终止行走可以在这里条件判定：
 	// core.stopAutomaticRoute();
 
-	// core.updateStatusBar();
+	core.updateStatusBar();
 },
         "moveDirectly": function (x, y, ignoreSteps) {
 	// 瞬间移动；x,y为要瞬间移动的点；ignoreSteps为减少的步数，可能之前已经被计算过
@@ -1313,6 +1364,9 @@ var functions_d6ad677b_427a_4623_b50f_a445a3b0ef8a =
 		core.setHeroLoc('x', x);
 		core.setHeroLoc('y', y);
 		core.drawHero();
+		core.status.heroSprite.objs.forEach(function(o){
+			o.notify('relocate');
+		});	
 		// 记录录像
 		core.status.route.push("move:" + x + ":" + y);
 		// 统计信息

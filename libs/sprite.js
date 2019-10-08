@@ -8,7 +8,7 @@ var Texture = PIXI.Texture;
 var Rectangle = PIXI.Rectangle;
 /*
     sprite.js 包含：
-    1. sprite： 对资源的注册管理
+    1. sprite： API接口；对资源的注册管理
     2. spriteBase： 提供所有图块图标的渲染接口的基础对象，包括terr、items、enemys、icons、animates，
     autotile和大地图贴图暂时不做（特殊的处理？）
     3. spriteLayer： 提供对一组sprite的渲染处理方法，
@@ -103,15 +103,20 @@ sprite.prototype._generateTextures = function() {
         var width = it.width || 32;
         var height = it.height || 32;
 
-        var org = new Rectangle(it.x||0, it.y||0, width*it.frame, width*it.line);
+        var org = new Rectangle(it.x||0, it.y||0, width * (it.frame || 1), height * (it.line || 1));
         for(var i = 0; i<nl; i++){
             var line = [];
             for(var j = 0; j<nf; j++){
-                line.push(
-                    new Texture(baseTextures[type],
-                        new Rectangle(org.x+j*width,org.y+i*height,width,height)
-                    )
-                );
+                try {
+                    line.push(
+                        new Texture(baseTextures[type],
+                            new Rectangle(org.x+j*width,org.y+i*height,width,height)
+                        )
+                    );
+                }
+                catch(e){
+                    debugger;
+                }
             }
             tmp.push(line);
         }
@@ -137,11 +142,39 @@ sprite.prototype.getAutotileSprite = function(name,sx,sy,sw,sh){
     return ret;
 }
 
+////// 把原来的素材合并到新的sprite中
+sprite.prototype.mergeOldTypes = function(){
+    var callback = function(){
+        core.sprite._rearrangementOldtype(); // 全部重排
+    }
+    var ct = 3;
+    ["enemys", "enemy48", "items"].forEach(function(type) {
+        var img = core.material.images[type];
+        var w = 32, h = type.indexOf('48')>=0 ? 48 : 32;
+        var names = Object.keys(core.icons.icons[type]);
+        var mergeNext = function(index){
+            if(index>=names.length){
+                ct -= 1;
+                if(ct==0)callback();
+                return;
+            }
+            var name = names[index];
+            var x = 0, y = core.icons.icons[type][name] * h;
+            core.sprite._registerSprite(img, name, x, y, w, h, ~~(img.width/w), 1, function(){
+                mergeNext(index+1);
+            });
+        }
+        mergeNext(0);
+    });
+}
+
+
+
 
 
 ////// 注册一个精灵， 测试版 | TODO： 服务器交互 ///
 //  自动元件需要单独处理
-sprite.prototype._registerSprite = function(image, name, x, y, w, h, frame, line){
+sprite.prototype._registerSprite = function(image, name, x, y, w, h, frame, line, callback){
     if(!name || !image)return null;
     if(this.sprite[name]){main.log('替换重复的spirte命名：'+name);}
     x = x || 0;
@@ -169,7 +202,7 @@ sprite.prototype._registerSprite = function(image, name, x, y, w, h, frame, line
     var canvas = document.createElement("canvas");
     var context = canvas.getContext("2d");
     canvas.width = dimg.width < imageWidth ? imageWidth : dimg.width;
-    canvas.height = dimg.height + h;
+    canvas.height = dimg.height + imageHeight;
     // var dx=this.xhBias.x,dy=this.xhBias.h;
     var dx = 0, dy = dimg.height;
     // 寻找合适位置 | 
@@ -196,18 +229,29 @@ sprite.prototype._registerSprite = function(image, name, x, y, w, h, frame, line
 
 
     // 嵌入图片
-    context.drawImage(dimg, 0, 0);
-    context.drawImage(image, x, y, imageWidth, imageHeight, dx, dy, w, h);
-    dimg.src = canvas.toDataURL("image/png");
-
+    var doConcat = function(name, image){
+        context.drawImage(dimg, 0, 0);
+        context.drawImage(image, x, y, imageWidth, imageHeight, dx, dy, imageWidth, imageHeight);
+        dimg.src = canvas.toDataURL("image/png");
+        dimg.onload = function(){
+            // TODO: 回传服务器
+            if(main.mode=='editor'){
+                //fs.writeFile('./project/images/'+name+'.png',core.material.images.sprite.src.split(',')[1],'base64', function(){})
+                
+            }
+            if(callback)callback();
+        }
+    }
+    if(typeof image == "string"){
+        core.loadImage(image, doConcat);
+    }else{
+        doConcat(name, image);
+    }
     // 保存注册信息
     // obj.name = name;
     obj.x = dx;  obj.y = dy;
     this.sprite[name] = obj;
 
-    dimg.src.onload = function(){
-        // TODO: 回传服务器
-    }
 }
 
 ///// 取消注册并删除所在画布区域
@@ -327,6 +371,7 @@ sprite.prototype._rearrangementOldtype = function(delSprite){
         core.material.images[delSprite.oldType].src = ctx.canvas.toDataURL('image/png');
     }else{
         Object.values(this.oldType).forEach(function(type) {
+            if(type=='autotile')return; ///自动元件有bug
             var image = core.material.images[type];
             var ctx = document.createElement("canvas").getContext("2d");
             ctx.canvas.width = image.width;
@@ -372,6 +417,9 @@ sprite.prototype.getSpriteFrame = function(name, frame, line){
 ///// 获取一个常驻的精灵对象 支持一系列操作 /////
 sprite.prototype.getSpriteObj = function(name){
     var texture = this.textures[name];//this.sprite[name];
+    if(!texture && name.indexOf('X')==0){
+        // TODO: 地图贴图的图块 特殊处理
+    }
     if(!texture) return this.getEmptySprite(name); //不存在的素材 返回空（作为容器存在）
     return new spriteBase(texture,{name:name});
 }
@@ -494,11 +542,16 @@ sprite.prototype.clearLayerSprite = function(){
     this.layer.clear();
 }
 
-///// sobj成为一个被观察者
+///// 图块优先级: bottom * 1000 + width  越小越优先画
+sprite.prototype.calcuSpritePrior = function(obj){
+    return (obj.priority || (obj.texture.width||32) + 1000*(obj.y+obj.texture.height));
+}
+
 ///// sobj成为一个被观察者 可以对dobj发出通知时进行行动 —— 注意： sobj必须是纯数据对象
 // 1. 被观察者不新增任何数据 只增加方法 —— 用闭包代替引用
 // 2. 对外表现仍然和subject对象无区别，只是无法直接访问其成员变量
 sprite.prototype.becomeSubject = function(sobj){
+    if(sobj.notify)return;
     Object.setPrototypeOf(sobj, subject.prototype);
     sobj._init(sobj);
 }
@@ -638,7 +691,9 @@ spriteLayer.prototype.createBackCanvas = function(){
 
 ///// 对obj重定位
 spriteLayer.prototype.relocate = function(obj, prior){
-    obj.zIndex = prior || this.calcuPrior(obj);
+    //this.removeChild(obj);
+    //this.addNewObj(obj, prior);
+    obj.zIndex = prior || core.calcuSpritePrior(obj);
     obj.sortDirty = true;
     // var idx = this.objs.indexOf(obj);
     // if(idx>=0)
@@ -653,10 +708,6 @@ spriteLayer.prototype.blur = function(){
     this.dirty = true;
 }
 
-///// 图块优先级: bottom * 1000 + width  越小越优先画
-spriteLayer.prototype.calcuPrior = function(obj){
-    return (obj.priority || (obj.texture.width||32) + 1000*(obj.y+obj.texture.height));
-}
 
 // 只有添加到layer中，sprite才是一个对象，否则只是一个数据
 spriteLayer.prototype.addNewObj = function(obj, prior){
@@ -666,7 +717,7 @@ spriteLayer.prototype.addNewObj = function(obj, prior){
         Object.setPrototypeOf(obj, spriteBase.prototype);
     }
     if(typeof prior != 'number'){
-        obj.zIndex = this.calcuPrior(obj);
+        obj.zIndex = core.calcuSpritePrior(obj);
     }else{
         obj.zIndex = prior; // 可以指定优先级 并且此优先级会持久化 可以用来做飞翔的鸟
     }
@@ -770,7 +821,7 @@ spriteBase.prototype.addMoveInfo = function(dx, dy, speed, callback, info){
         'dx':dx, 'dy': dy,
         'xDir': dx>0?1:dx<0?-1:0,
         'yDir': dy>0?1:dy<0?-1:0,
-        'speed':dist/speed, 'lag': 0,
+        'speed': speed, 'lag': 0,
         'animate': true,
         'startStep': false,
         'callback': callback,
@@ -779,7 +830,7 @@ spriteBase.prototype.addMoveInfo = function(dx, dy, speed, callback, info){
         this.move[i] = info[i];
     }
     if(this.move.animate){
-        this._maxWaitCount = 4;
+        this._maxWaitCount = 6;
     }else{
         this._maxWaitCount = -1;
     }
@@ -891,7 +942,7 @@ spriteBase.prototype.getSpeed = function(){
 }
 
 
-spriteBase.prototype.setPositionWithBlock = function(block){
+Container.prototype.setPositionWithBlock = function(block){
     this.x = block.x * core.__BLOCK_SIZE__ + core.__HALFBLOCK_SIZE__ ;
     this.y = (block.y+1) * core.__BLOCK_SIZE__;
 }
@@ -899,7 +950,7 @@ spriteBase.prototype.setPositionWithBlock = function(block){
 //////
 spriteBase.prototype.moveAction = function(timeDelta){
     if(this.isMoving()){
-        var step = Math.max(this.move.speed*timeDelta,1); // 至少移动1像素
+        var step = Math.max(this.move.speed*timeDelta, 0); // 至少移动1像素
         if(this.move.dx < 0){
             this.move.realX = Math.max(this.move.realX - step, this.move.destX);
         }
@@ -1070,7 +1121,7 @@ subject.prototype.addObserver = function(obj, info) {
     }
 }
 
-///// 清空已经没有观察者的
+
 subject.prototype.isEmpty = function(){
     if(this.observers().length==0){
         return true;

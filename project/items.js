@@ -281,8 +281,8 @@ var items_296f5d02_12fd_4166_a7c1_b5e830c9ee3a =
 			"text": "可以解除诅咒状态"
 		},
 		"superWine": {
-			"cls": "tools",
-			"name": "万能药水",
+			"cls": "items",
+			"name": "魔力药水",
 			"text": "可以解除所有不良状态"
 		},
 		"hammer": {
@@ -300,15 +300,99 @@ var items_296f5d02_12fd_4166_a7c1_b5e830c9ee3a =
 			"name": "跳跃靴",
 			"text": "能跳跃到前方两格处"
 		},
-		"skill1": {
+		"skill_1": {
 			"cls": "constants",
-			"name": "技能：二倍斩",
-			"text": "可以打开或关闭主动技能二倍斩",
-			"hideInReplay": true
+			"name": "射击",
+			"text": "普通攻击"
 		},
 		"wand": {
 			"cls": "items",
-			"name": "新物品"
+			"name": "普通"
+		},
+		"arrow1": {
+			"cls": "equips",
+			"name": "普通的箭",
+			"text": "普通的箭，每次攻击消耗1金币。",
+			"equip": {
+				"type": 0,
+				"cost": 1
+			}
+		},
+		"arrow2": {
+			"cls": "equips",
+			"name": "毒箭",
+			"text": "造成伤害后赋予额外毒伤，数值为怪物已受伤害*0.1",
+			"equip": {
+				"type": 0,
+				"cost": 2
+			}
+		},
+		"arrow3": {
+			"cls": "equips",
+			"name": "爆裂箭",
+			"text": "射出的箭矢能够对怪物十字范围造成${(flags.bombArrowDamage||0.5)*100}%溅射伤害。消耗4金币。",
+			"equip": {
+				"type": 0,
+				"cost": 4
+			}
+		},
+		"arrow4": {
+			"cls": "equips",
+			"name": "麻痹箭",
+			"text": "射出的箭矢让怪物变成白痴，受击怪物下回合才能移动。消耗2金币。",
+			"equip": {
+				"type": 0,
+				"cost": 2
+			}
+		},
+		"arrow5": {
+			"cls": "equips",
+			"name": "幽灵箭",
+			"text": "射出的箭矢无视第一次墙壁碰撞。消耗3金币。",
+			"equip": {
+				"type": 0,
+				"cost": 3
+			}
+		},
+		"skill1": {
+			"cls": "constants",
+			"name": "射击【W】",
+			"text": "普通攻击，不消耗能量。",
+			"equip": {
+				"cost": 0
+			}
+		},
+		"skill2": {
+			"cls": "constants",
+			"name": "诱捕陷阱",
+			"text": "消耗1能量，布下一张网，怪物经过时会困住一回合，并造成${core.status.hero.def || 50}点(勇士防御值)的伤害。",
+			"equip": {
+				"cost": 1
+			}
+		},
+		"skill3": {
+			"cls": "constants",
+			"name": "灵引",
+			"text": "消耗2能量，选择一个点和方向，下次攻击的箭矢将在该点进行转向。",
+			"equip": {
+				"cost": 2
+			}
+		},
+		"skill4": {
+			"cls": "constants",
+			"name": "瞬步",
+			"text": "消耗1能量，瞬间后退两步。(后退过程中不能有阻挡)",
+			"equip": {
+				"cost": 1
+			}
+		},
+		"skill5": {
+			"cls": "constants",
+			"name": "强击",
+			"text": "消耗3能量，下次箭矢将会穿透怪物，每穿透一次伤害降低一半。",
+			"equip": {
+				"cost": 3
+			}
 		}
 	},
 	"itemEffect": {
@@ -334,7 +418,8 @@ var items_296f5d02_12fd_4166_a7c1_b5e830c9ee3a =
 		"shield5": "core.status.hero.def += 100;core.status.hero.mdef += 100",
 		"bigKey": "core.status.hero.items.keys.yellowKey++;core.status.hero.items.keys.blueKey++;core.status.hero.items.keys.redKey++;",
 		"superPotion": "core.status.hero.hp *= 2",
-		"moneyPocket": "core.status.hero.money += 500"
+		"moneyPocket": "core.status.hero.money += 50",
+		"superWine": "core.status.hero.mana += 5"
 	},
 	"itemEffectTip": {
 		"redJewel": "'，攻击+'+core.values.redJewel * ratio",
@@ -359,7 +444,8 @@ var items_296f5d02_12fd_4166_a7c1_b5e830c9ee3a =
 		"shield5": "'，防御+100，魔防+100'",
 		"bigKey": "'，全钥匙+1'",
 		"superPotion": "'，生命值翻倍'",
-		"moneyPocket": "'，金币+500'"
+		"moneyPocket": "'，金币+500'",
+		"superWine": "'，魔力+5'"
 	},
 	"useItemEffect": {
 		"book": "core.ui.drawBook(0);",
@@ -388,7 +474,17 @@ var items_296f5d02_12fd_4166_a7c1_b5e830c9ee3a =
 		"blueJewel": "core.status.hero.def += core.values.blueJewel",
 		"greenJewel": "core.status.hero.mdef += core.values.greenJewel",
 		"yellowJewel": "core.insertAction([\n\t{\"type\": \"choices\", \"choices\": [\n\t\t{\"text\": \"攻击+1\", \"action\": [\n\t\t\t{\"type\": \"setValue\", \"name\": \"status:atk\", \"value\": \"status:atk+1\"}\n\t\t]},\n\t\t{\"text\": \"防御+2\", \"action\": [\n\t\t\t{\"type\": \"setValue\", \"name\": \"status:def\", \"value\": \"status:def+2\"}\n\t\t]},\n\t\t{\"text\": \"生命+200\", \"action\": [\n\t\t\t{\"type\": \"setValue\", \"name\": \"status:hp\", \"value\": \"status:hp+200\"}\n\t\t]},\n\t]}\n]);",
-		"skill1": "// 二倍斩的flag:skill为1\nif (core.getFlag('skill', 0)==0) { // 判断当前是否已经开了技能\n\tif (core.getStatus('mana')>=5) { // 这里要写当前能否开技能的条件判断，比如魔力值至少要多少\n\t\tcore.setFlag('skill', 1); // 开技能1\n\t\tcore.setFlag('skillName', '二倍斩'); // 设置技能名\n\t}\n\telse {\n\t\tcore.drawTip(\"魔力不足，无法开启技能\");\n\t}\n}\nelse { // 关闭技能\n\tcore.setFlag('skill', 0); // 关闭技能状态\n\tcore.setFlag('skillName', '无');\n}"
+		"skill_1": "core.baseShoot()",
+		"arrow1": "flags.arrowCho = itemId",
+		"arrow2": "flags.arrowCho = itemId",
+		"arrow3": "flags.arrowCho = itemId",
+		"arrow4": "flags.arrowCho = itemId",
+		"arrow5": "flags.arrowCho = itemId",
+		"skill1": "core.useSkill(itemId)",
+		"skill2": "core.useSkill(itemId)",
+		"skill3": "core.useSkill(itemId)",
+		"skill4": "core.useSkill(itemId)",
+		"skill5": "core.useSkill(itemId)"
 	},
 	"canUseItemEffect": {
 		"book": "true",
@@ -417,7 +513,17 @@ var items_296f5d02_12fd_4166_a7c1_b5e830c9ee3a =
 		"blueJewel": "true",
 		"greenJewel": "true",
 		"yellowJewel": "true",
-		"skill1": "true"
+		"skill_1": "true",
+		"arrow1": "true",
+		"arrow2": "true",
+		"arrow3": "true",
+		"arrow4": "true",
+		"arrow5": "true",
+		"skill1": "true",
+		"skill2": "core.canUseSkill(itemId)",
+		"skill3": "true",
+		"skill4": "core.canUseSkill(itemId)",
+		"skill5": "true"
 	},
 	"equipCondition": {}
 }

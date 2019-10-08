@@ -52,7 +52,7 @@ function control() {
         // 移动 此处主要针对地图上的块 每次移动1格
         'move': function(block, moveInfo){
             this.setPositionWithBlock(block);
-            var speed = moveInfo.speed || 10; // TODO: 速度信息
+            var speed = moveInfo.speed || 1; // TODO: 速度信息
             var dir = moveInfo.direction;
             var obj = this;
             core.events._eventMoveSprite_moving(obj, dir, speed, moveInfo.callback, moveInfo.info)
@@ -78,10 +78,19 @@ function control() {
             core.animateFrame.asyncId[obj] = true;
             nextStep();
         },
+
+        'relocate': function(block){
+            if(this.parent){
+                this.parent.relocate(this);
+            }
+        },
+
+
         // 跳跃 todo: 有细微的像素偏差 不知道问题在什么地方
         'jump': function(block, jumpInfo){
             var obj = this;
-            obj.parent.relocate(obj,1000001);
+            if(obj.parent)
+                obj.parent.relocate(obj,1000001);
             var px = jumpInfo.px,
                 py = jumpInfo.py;
             var bias_x = px - this.x,
@@ -131,7 +140,7 @@ function control() {
         // 死亡的obj
         'remove': function(block, layer, obj){
             if(obj && this!==obj)return;
-            layer = layer || core.scenes.mapScene.getLayer('event');
+            layer = layer || this.parent || obj;
             layer.removeChild(this);//从场景中移除自身
             block.remove(this);//观察者列表移除自身
         }
@@ -735,7 +744,8 @@ control.prototype._herosSpriteMove = function(callback){
             o.notify("move",{
                 'moveSteps':[o.direction],
                 'direction': o.direction,
-                'speed': 6,
+                'speed': core.__BLOCK_SIZE__ / (core.values.moveSpeed/16.6), 
+                // hero移动速度: 每帧的移动距离，一帧约为16.6ms values的movespeed代表移动一格经过的毫秒数
                 'callback': function(){
                     ct -= 1;
                     if(ct==0 && i==core.status.heroSprite.objs.length){
@@ -790,6 +800,11 @@ control.prototype.setHeroMoveInterval = function (callback) {
     }, (core.values.moveSpeed||100) / 8 * toAdd / core.status.replay.speed);
 }
 
+////// 每一步移动前的操作 如果返回false 表示无法移动 /////
+control.prototype.beforeMoveStep = function(canMove){
+    return this.controldata.beforeMoveStep(canMove);
+}
+
 ////// 每移动一格后执行的事件 //////
 control.prototype.moveOneStep = function(x, y) {
     return this.controldata.moveOneStep(x, y);
@@ -799,6 +814,7 @@ control.prototype.moveOneStep = function(x, y) {
 control.prototype.moveAction = function (callback) {
     if (core.status.heroMoving>0) return;
     var noPass = core.noPass(core.nextX(), core.nextY()), canMove = core.canMoveHero();
+    this.beforeMoveStep(!(noPass || !canMove));
     // 下一个点如果不能走
     if (noPass || !canMove) return this._moveAction_noPass(canMove, callback);
     this._moveAction_moving(callback);
@@ -877,7 +893,6 @@ control.prototype.moveHero = function (direction, callback) {
     if (core.status.heroMoving!=0) return;
     if (core.isset(direction))
         core.setHeroLoc('direction', direction);
-
     if (callback) return this.moveAction(callback);
     this._moveHero_moving();
 }

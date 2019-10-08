@@ -701,8 +701,7 @@ maps.prototype._bindObserverToBlock = function(block, sprite) {
     sprite = sprite || core.getSpriteObj(block.event.sprite);
     if(block.hasObserver(sprite))return;
     block.addObserver(
-        sprite,
-        core.control.observerAction,
+        sprite
     );
 }
 
@@ -1195,6 +1194,7 @@ maps.prototype._makeAutotileEdges = function () {
         core.material.autotileEdges[n] = [n];
 
         ctx.clearRect(0, 0, 32, 32);
+        if(!core.sprite.sprite[t])return;
         ctx.drawImage(core.material.images.autotile, core.sprite.sprite[t].x, 0, 32, 32, 0, 0, 32, 32);
         var data = canvas.toDataURL("image/png");
 
@@ -1847,6 +1847,7 @@ maps.prototype._moveBlock_spriteMove = function(block, steps, time, callback, re
     var i = 0;
     var moveInfo = {
         direction: moveSteps[i], step: 0, per_time: time / 16 / core.status.replay.speed,
+        speed: core.__BLOCK_SIZE__ / time,
     }
     var nextStep = function(){
         moveInfo.direction = moveSteps[i];
@@ -1855,7 +1856,7 @@ maps.prototype._moveBlock_spriteMove = function(block, steps, time, callback, re
             return;
         }
         if(realmove){ // 使用自己的方法进行
-            realmove(nextStep);
+            realmove(moveInfo.direction, nextStep);
         }else{
             block.notify('move', moveInfo);
             core.maps._moveBlock_dataMove(block, moveInfo.direction);
@@ -2155,7 +2156,11 @@ maps.prototype.animateBlock = function (loc, type, time, callback) {
             'callback': function(){
                 ct -= 1;
                 l.block.notify('stop');
-                if (isHide) core.removeBlock(l.x, l.y);
+                if (isHide) {
+                    l.block.notify('remove');
+                    var idx = core.status.thisMap.blocks.indexOf(l.block);
+                    if(idx>=0)core.status.thisMap.blocks.splice(idx, 1);
+                }//core.removeBlock(l.x, l.y);
                 else core.showBlock(l.x, l.y);
                 if(ct==0 && callback)
                     callback();

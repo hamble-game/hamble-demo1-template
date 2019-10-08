@@ -2,18 +2,22 @@ var data_a1e2fb4a_e986_4524_b0da_9b7ba7c0874d =
 {
 	"main": {
 		"floorIds": [
-			"sample0",
-			"sample1",
-			"sample2",
-			"sample3",
-			"MT0"
+			"MT0",
+			"MT1",
+			"MT2",
+			"MT3",
+			"MT4",
+			"MT5",
+			"MT6",
+			"MT7"
 		],
 		"images": [
 			"bg.jpg",
 			"winskin.png"
 		],
 		"tilesets": [
-			"magictower.png"
+			"magictower.png",
+			"magictower2.png"
 		],
 		"animates": [
 			"hand",
@@ -33,7 +37,11 @@ var data_a1e2fb4a_e986_4524_b0da_9b7ba7c0874d =
 			"jump.mp3",
 			"pickaxe.mp3",
 			"bomb.mp3",
-			"centerFly.mp3"
+			"centerFly.mp3",
+			"shoot.ogg",
+			"shootBomb.ogg",
+			"shootChange.ogg",
+			"shootOn.ogg"
 		],
 		"nameMap": {
 			"背景图.jpg": "bg.jpg",
@@ -79,16 +87,16 @@ var data_a1e2fb4a_e986_4524_b0da_9b7ba7c0874d =
 		"title": "魔塔样板",
 		"name": "template",
 		"version": "Ver 2.6.3",
-		"floorId": "sample0",
+		"floorId": "MT0",
 		"hero": {
 			"name": "阳光",
 			"lv": 1,
 			"hpmax": 9999,
-			"hp": 1000,
+			"hp": 100,
 			"manamax": -1,
-			"mana": 0,
-			"atk": 100,
-			"def": 100,
+			"mana": 10,
+			"atk": 10,
+			"def": 10,
 			"mdef": 0,
 			"money": 0,
 			"experience": 0,
@@ -375,12 +383,12 @@ var data_a1e2fb4a_e986_4524_b0da_9b7ba7c0874d =
 		"floorChangeTime": 800
 	},
 	"flags": {
-		"mspf":30, // 全局每一帧用时的毫秒数
+		"mspf": 30,
 		"enableFloor": true,
 		"enableName": false,
 		"enableLv": false,
 		"enableHPMax": false,
-		"enableMana": false,
+		"enableMana": true,
 		"enableMDef": true,
 		"enableMoney": true,
 		"enableExperience": false,
@@ -399,7 +407,7 @@ var data_a1e2fb4a_e986_4524_b0da_9b7ba7c0874d =
 		"steelDoorWithoutKey": false,
 		"itemFirstText": true,
 		"equipment": false,
-		"equipboxButton": false,
+		"equipboxButton": true,
 		"iconInEquipbox": false,
 		"enableAddPoint": false,
 		"enableNegativeDamage": false,
@@ -416,7 +424,7 @@ var data_a1e2fb4a_e986_4524_b0da_9b7ba7c0874d =
 		"displayExtraDamage": true,
 		"enableGentleClick": true,
 		"potionWhileRouting": false,
-		"ignoreChangeFloor": true,
+		"ignoreChangeFloor": false,
 		"canGoDeadZone": false,
 		"enableMoveDirectly": true,
 		"enableDisabledShop": true,

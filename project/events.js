@@ -331,6 +331,140 @@ var events_c12a15a8_c380_4b28_8144_256cba95f760 =
 					}
 				]
 			}
+		],
+		"灵引": [
+			{
+				"type": "setValue",
+				"name": "flag:type",
+				"value": "0"
+			},
+			{
+				"type": "while",
+				"condition": "flags.type!=1",
+				"data": [
+					{
+						"type": "wait"
+					},
+					{
+						"type": "if",
+						"condition": "flags.type==1",
+						"true": [
+							{
+								"type": "if",
+								"condition": "core.getBlock(flags.x,flags.y)",
+								"true": [
+									{
+										"type": "tip",
+										"text": "不能放在此处！"
+									},
+									{
+										"type": "function",
+										"function": "function(){\nflags.type=0\n}"
+									},
+									{
+										"type": "continue"
+									}
+								],
+								"false": [
+									{
+										"type": "strokeRect",
+										"x": "flags.x*32",
+										"y": "flags.y*32",
+										"width": 32,
+										"height": 32,
+										"style": [
+											255,
+											221,
+											0,
+											1
+										]
+									},
+									{
+										"type": "choices",
+										"text": "选择方向",
+										"choices": [
+											{
+												"text": "上",
+												"action": [
+													{
+														"type": "function",
+														"function": "function(){\nflags.tmp_dir = 'up'\n}"
+													}
+												]
+											},
+											{
+												"text": "左",
+												"action": [
+													{
+														"type": "function",
+														"function": "function(){\nflags.tmp_dir = 'left'\n}"
+													}
+												]
+											},
+											{
+												"text": "右",
+												"action": [
+													{
+														"type": "function",
+														"function": "function(){\nflags.tmp_dir = 'right'\n}"
+													}
+												]
+											},
+											{
+												"text": "下",
+												"action": [
+													{
+														"type": "function",
+														"function": "function(){\nflags.tmp_dir = 'down'\n}"
+													}
+												]
+											},
+											{
+												"text": "取消",
+												"color": [
+													187,
+													187,
+													187,
+													1
+												],
+												"action": [
+													{
+														"type": "function",
+														"function": "function(){\nflags.tmp_dir = null\n}"
+													}
+												]
+											}
+										]
+									},
+									{
+										"type": "if",
+										"condition": "flags.tmp_dir",
+										"true": [
+											{
+												"type": "function",
+												"function": "function(){\nflags.changePoints = flags.changePoints || [];\nflags.changePoints.push({ x: flags.x, y: flags.y, direction: flags.tmp_dir });\ncore.drawNets(core.scenes.mapScene.getLayer('event'));\n}"
+											}
+										],
+										"false": [
+											{
+												"type": "function",
+												"function": "function(){\ncore.status.hero.mana += core.items.items.skill3.equip.cost\n}"
+											}
+										]
+									},
+									{
+										"type": "clearMap"
+									},
+									{
+										"type": "break"
+									}
+								]
+							}
+						],
+						"false": []
+					}
+				]
+			}
 		]
 	}
 }

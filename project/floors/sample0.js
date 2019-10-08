@@ -16,11 +16,11 @@ main.floors.sample0=
     [ 20, 20,125, 20, 20, 20,  0,  3, 53, 54, 55, 56, 39],
     [216,247,263,235,248,  6,  0,  3, 49, 50, 51, 52, 38],
     [  6,  6,125,  6,  6,  6,  0,  1, 45, 46, 47, 48, 37],
-    [224,254,212,262,204,  5,126,  1, 31, 32, 34, 33, 36],
+    [224,254,212,262,204,  5,  0,  1, 31, 32, 34, 33, 36],
     [201,261,217,264,207,  5,  0,  1, 27, 28, 29, 30, 35],
     [  5,  5,125,  5,  5,  5,  0,  1, 21, 22, 23, 24, 25],
     [  0,  0,237,  0,  0,  0, 45,  1,  1,  1,121,  1,  1],
-    [  4,  4,133,  4,  4,  4,  0,  0,  0,  0,  0, 85,124],
+    [  4,  4,133,  4,  4,132,  0,  0,128,  0,  0, 85,124],
     [ 87, 11, 12, 13, 14,  4,  4,  2,  2,  2,122,  2,  2],
     [ 88, 89, 90, 91, 92, 93, 94,  2, 81, 82, 83, 84, 86]
 ],
@@ -96,30 +96,398 @@ main.floors.sample0=
                 }
             ]
         },
-        "6,7": [
+        "5,10": [
+            "组件UI的第一个范例，带地图的选项框，这是锁定勇士操作后进行选择的。上下键移动光标，按ESC或者点击第三个任务进行退出。",
             {
-                "type": "show",
-                "loc": [
-                    [
-                        6,
-                        6
-                    ]
-                ],
-                "time": 500
+                "type": "setValue",
+                "name": "flag:cho",
+                "value": "0"
+            },
+            {
+                "type": "componentUI",
+                "name": "back",
+                "x": 90,
+                "y": 0,
+                "width": 416,
+                "height": 416,
+                "action": [
+                    {
+                        "type": "componentEmbd",
+                        "name": "drag",
+                        "param": "122",
+                        "action": [
+                            {
+                                "type": "uiRelocate",
+                                "name": "back",
+                                "x": "flag:arg_x + flag:arg_px-flag:arg_lastx",
+                                "y": "flag:arg_y + flag:arg_py-flag:arg_lasty"
+                            },
+                            {
+                                "type": "drawArrow",
+                                "x1": "flag:arg_lastx",
+                                "y1": "flag:arg_lasty",
+                                "x2": "flag:arg_px",
+                                "y2": "flag:arg_py"
+                            }
+                        ]
+                    },
+                    {
+                        "type": "componentEmbd",
+                        "name": "keyup",
+                        "param": "Up,Down,Esc,220",
+                        "action": [
+                            {
+                                "type": "switch",
+                                "condition": "flag:arg_key",
+                                "caseList": [
+                                    {
+                                        "case": "'Up'",
+                                        "action": [
+                                            {
+                                                "type": "setValue",
+                                                "name": "flag:cho",
+                                                "value": "Math.max(0,flag:cho-1)"
+                                            },
+                                            {
+                                                "type": "clearMap"
+                                            },
+                                            {
+                                                "type": "flushUI",
+                                                "name": "back"
+                                            }
+                                        ]
+                                    },
+                                    {
+                                        "case": "'Down'",
+                                        "action": [
+                                            {
+                                                "type": "setValue",
+                                                "name": "flag:cho",
+                                                "value": "Math.min(3,flag:cho+1)"
+                                            },
+                                            {
+                                                "type": "clearMap"
+                                            },
+                                            {
+                                                "type": "flushUI",
+                                                "name": "back"
+                                            }
+                                        ]
+                                    },
+                                    {
+                                        "case": "'Esc'",
+                                        "action": [
+                                            {
+                                                "type": "clearUI",
+                                                "name": "back"
+                                            },
+                                            {
+                                                "type": "unlockControl"
+                                            }
+                                        ]
+                                    }
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        "type": "drawBackground",
+                        "background": "winskin.png",
+                        "x": 0,
+                        "y": 0,
+                        "width": 120,
+                        "height": 250
+                    },
+                    {
+                        "type": "fillRect",
+                        "x": 0,
+                        "y": 250,
+                        "width": 120,
+                        "height": 20,
+                        "style": [
+                            170,
+                            170,
+                            170,
+                            1
+                        ]
+                    },
+                    {
+                        "type": "fillText",
+                        "x": 20,
+                        "y": 270,
+                        "style": [
+                            34,
+                            34,
+                            17,
+                            1
+                        ],
+                        "font": "12px Verdana",
+                        "text": "按住可以拖动"
+                    },
+                    {
+                        "type": "setValue",
+                        "name": "flag:tmp",
+                        "value": "0"
+                    },
+                    {
+                        "type": "while",
+                        "condition": "flag:tmp<4",
+                        "data": [
+                            {
+                                "type": "componentUI",
+                                "name": "任务${flag:tmp}",
+                                "x": 10,
+                                "y": "20+60*flag:tmp",
+                                "width": 100,
+                                "height": 50,
+                                "action": [
+                                    {
+                                        "type": "componentEmbd",
+                                        "name": "click",
+                                        "param": "125",
+                                        "action": [
+                                            {
+                                                "type": "if",
+                                                "condition": "flag:arg_name=='任务3'",
+                                                "true": [
+                                                    {
+                                                        "type": "clearUI",
+                                                        "name": "back"
+                                                    },
+                                                    {
+                                                        "type": "unlockControl"
+                                                    }
+                                                ],
+                                                "false": [
+                                                    "选择了${flag:arg_name}。这一栏的任务详情是……"
+                                                ]
+                                            }
+                                        ]
+                                    },
+                                    {
+                                        "type": "if",
+                                        "condition": "flag:cho==flag:tmp",
+                                        "true": [
+                                            {
+                                                "type": "drawSelector",
+                                                "image": "winskin.png",
+                                                "x": 0,
+                                                "y": 0,
+                                                "width": 100,
+                                                "height": 40
+                                            },
+                                            {
+                                                "type": "fillRect",
+                                                "x": 100,
+                                                "y": 0,
+                                                "width": 200,
+                                                "height": 200,
+                                                "style": [
+                                                    238,
+                                                    238,
+                                                    238,
+                                                    1
+                                                ]
+                                            },
+                                            {
+                                                "type": "drawThumbnail",
+                                                "floorId": "sample${flag:tmp}",
+                                                "x": 105,
+                                                "y": 5,
+                                                "width": 190,
+                                                "height": 190
+                                            }
+                                        ],
+                                        "false": []
+                                    },
+                                    {
+                                        "type": "if",
+                                        "condition": "flag:tmp==3",
+                                        "true": [
+                                            {
+                                                "type": "fillBoldText",
+                                                "x": 0,
+                                                "y": 20,
+                                                "style": [
+                                                    221,
+                                                    221,
+                                                    221,
+                                                    1
+                                                ],
+                                                "font": "bold 15px Verdana",
+                                                "text": "点击这里退出！"
+                                            }
+                                        ],
+                                        "false": [
+                                            {
+                                                "type": "fillBoldText",
+                                                "x": 0,
+                                                "y": 20,
+                                                "style": [
+                                                    221,
+                                                    221,
+                                                    221,
+                                                    1
+                                                ],
+                                                "font": "bold 15px Verdana",
+                                                "text": "第${flag:tmp}层的副本！"
+                                            }
+                                        ]
+                                    },
+                                    {
+                                        "type": "fillBoldText",
+                                        "x": 0,
+                                        "y": 0,
+                                        "style": [
+                                            221,
+                                            221,
+                                            221,
+                                            1
+                                        ],
+                                        "font": "bold 18px Verdana",
+                                        "text": "${flag:tmp}. xxxx"
+                                    }
+                                ]
+                            },
+                            {
+                                "type": "componentEnable",
+                                "name": "任务${flag:tmp}"
+                            },
+                            {
+                                "type": "addValue",
+                                "name": "flag:tmp",
+                                "value": "1"
+                            }
+                        ]
+                    },
+                    {
+                        "type": "componentEnable",
+                        "name": "back"
+                    }
+                ]
+            },
+            {
+                "type": "lockControl"
             }
         ],
-        "6,6": {
-            "trigger": null,
-            "enable": false,
-            "noPass": null,
-            "displayDamage": true,
-            "data": []
-        },
-        "3,9": [
+        "8,10": [
+            "UI第二个范例，这个事件结束后，ui也依然存在，可以与系统操作共存。\n目前的问题，一是读档之后会消失，二是操作无法进录像。\n后续版本会解决这个问题，有什么建议可以先提出，这只是个测试版。",
             {
-                "type": "jump",
-                "time": 500,
-                "keep": true
+                "type": "moveHero",
+                "time": 200,
+                "loc": [
+                    6,
+                    2
+                ],
+                "async": true,
+                "steps": []
+            },
+            {
+                "type": "move",
+                "dstloc": [
+                    6,
+                    2
+                ],
+                "time": 200,
+                "steps": []
+            },
+            {
+                "type": "setValue",
+                "name": "flag:controlX",
+                "value": "0"
+            },
+            {
+                "type": "setValue",
+                "name": "flag:controlY",
+                "value": "0"
+            },
+            {
+                "type": "setValue",
+                "name": "flag:controlR",
+                "value": "80"
+            },
+            {
+                "type": "componentUI",
+                "name": "pannel",
+                "x": 270,
+                "y": 270,
+                "width": 200,
+                "height": 200,
+                "action": [
+                    {
+                        "type": "componentEmbd",
+                        "name": "click",
+                        "param": "44",
+                        "action": []
+                    },
+                    {
+                        "type": "componentEmbd",
+                        "name": "drag",
+                        "param": "49",
+                        "action": [
+                            {
+                                "type": "function",
+                                "function": "function(){\nvar px = core.getFlag('arg_px');\nvar py = core.getFlag('arg_py');\ncore.setFlag('ratio', 50 / Math.max(50, Math.sqrt((px - 365) * (px - 365) + (py - 365) * (py - 365))));\n}"
+                            },
+                            {
+                                "type": "setValue",
+                                "name": "flag:controlX",
+                                "value": "(flag:arg_px-flag:arg_x-flag:controlR)*flag:ratio"
+                            },
+                            {
+                                "type": "setValue",
+                                "name": "flag:controlY",
+                                "value": "(flag:arg_py-flag:arg_y-flag:controlR)*flag:ratio"
+                            },
+                            {
+                                "type": "flushUI",
+                                "name": "pannel"
+                            },
+                            {
+                                "type": "function",
+                                "function": "function(){\n/*var cx = core.getFlag('controlX');\nvar cy = core.getFlag('controlY');\ncore.status.lockControl = false;\nvar k = { 'keyCode': 0 };\nif (cy > 15) {\n\tk.keyCode = 40;\n} else if (cy < -15) {\n\tk.keyCode = 38;\n\n} else if (cx > 15) {\n\tk.keyCode = 39;\n\n} else if (cx < -15) {\n\tk.keyCode = 37;\n}\nif (k.keyCode)\n\tcore.actions._sys_onkeyDown(k);\n*/\n}"
+                            }
+                        ]
+                    },
+                    {
+                        "type": "componentUI",
+                        "name": "circle",
+                        "x": "flag:controlR",
+                        "y": "flag:controlR",
+                        "width": 30,
+                        "height": 30,
+                        "action": [
+                            {
+                                "type": "fillCircle",
+                                "x": "flag:controlX",
+                                "y": "flag:controlY",
+                                "r": 30,
+                                "style": [
+                                    0,
+                                    0,
+                                    0,
+                                    0.95
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        "type": "fillCircle",
+                        "x": "flag:controlR",
+                        "y": "flag:controlR",
+                        "r": 50,
+                        "style": [
+                            204,
+                            204,
+                            204,
+                            0.3
+                        ]
+                    }
+                ]
+            },
+            {
+                "type": "componentEnable",
+                "name": "pannel"
             }
         ]
     },

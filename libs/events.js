@@ -2287,7 +2287,7 @@ events.prototype.eventMoveSprite= function(obj, steps, time, callback){
     });
     var nextStep = function(){
         if(step<moveSteps.length){
-            this._eventMoveSprite_moving(obj, moveSteps[step++], time, nextStep);
+            core.events._eventMoveSprite_moving(obj, moveSteps[step++], time, nextStep);
         }else{
             obj.stopMoving();
             if(callback)callback();
@@ -2315,8 +2315,8 @@ events.prototype._eventMoveSprite_moving = function(obj, direction, speed, callb
 /////// 使用事件让勇士移动。这个函数将不会触发任何事件 //////
 events.prototype.eventMoveHero = function(steps, time, callback) {
     core.maps._moveBlock_spriteMove(null, steps, time,
-        callback,
-        function(next){
+        callback, function(direction, next){
+            core.setHeroLoc('direction', direction, true);
             core.control._herosSpriteMove(next);
             core.setHeroLoc('x', core.nextX(), true);
             core.setHeroLoc('y', core.nextY(), true);
