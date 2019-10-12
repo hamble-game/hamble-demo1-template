@@ -1108,5 +1108,17 @@ var plugins_bb40132b_638b_4a9f_b028_d3fe47acc8d1 =
 			default:break;
 		}
 	}
+},
+    "utilFunctions": function () {
+	// 在此增加新插件
+
+},
+    "TurnBased": function () {
+	// 在此增加新插件
+
+},
+    "CharacterClass": function () {
+	// 在此增加新插件
+
 }
 }
