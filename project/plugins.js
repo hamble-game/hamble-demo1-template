@@ -1111,10 +1111,84 @@ var plugins_bb40132b_638b_4a9f_b028_d3fe47acc8d1 =
 },
     "utilFunctions": function () {
 	// 在此增加新插件
-
+	
 },
     "TurnBased": function () {
-	// 在此增加新插件
+	// 三个阶段的回合制
+	// 玩家行动-怪物行动-结束阶段
+	// player-enemy-end
+
+	var newid = function () {
+		var id=core.getFlag('current_id_count', 1)
+		core.setFlag('current_id_count', ~~id+1)
+		return '_'+id
+	}
+
+	var defaultTurnEvent={
+		sourceCharacter: 'player',
+		stage: 'player',
+		turns: -1,
+		action: 'function(teobj){}'
+	}
+
+	/**
+	 * 
+	 * @param {string} sourceCharacter 创建者
+	 * @param {string} stage 事件要被注册到的阶段
+	 * @param {number} turns 剩余回合数, -1表示不会自动消失
+	 * @param {string} action 执行的动作, 此处用字符串形式
+	 * @param {string} sourceId 用来区分一个3*3的火来自同一个法术
+	 */
+	function TurnEvent(sourceCharacter,stage,turns,action,sourceId){
+		var teobj=Object.assign(
+			{id:newid()},
+			defaultTurnEvent,
+			{sourceCharacter,stage,turns,action,sourceId}
+		)
+		if(!teobj.sourceId)teobj.sourceId=newid();
+		return teobj
+	}
+
+	function getTurnEvents(){
+		return core.getFlag('TurnEvents',{
+			player:[],
+			enemy:[],
+			end:[],
+		})
+	}
+
+	function enterStage(stageName){
+		switch (stagename) {
+			case 'player':
+				
+				break;
+			case 'enemy':
+			
+				break;
+			case 'end':
+		
+				break;
+		
+			default:
+				break;
+		}
+	}
+
+	function generalAction(params) {
+		
+	}
+
+	function moveOnly(params) {
+		
+	}
+
+	function skillOnly(params) {
+		
+	}
+
+	function selectingTarget(params) {
+		
+	}
 
 },
     "CharacterClass": function () {
